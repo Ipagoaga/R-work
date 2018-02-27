@@ -1,0 +1,50 @@
+rm(list=ls())
+
+# load 
+library(quanteda)
+require(readtext)#this is like library
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(rowr)
+
+
+###Load all general debates
+DPG <- readtext("~Parliamentary session/CP/*.txt", encoding="utf-8")
+DPG
+DPGcorp <- corpus(DPG)
+docnames(DPGcorp) <- (DPG$doc_id)#change the names of the documents extracting the text from the default column created by quanteda
+summary(DPGcorp)
+
+###Create a new docvar (create a new variable for the document, the party variable)
+docvars(DPGcorp, "Year") <- substring(names(texts(DPGcorp)),1,4)
+docvars(DPGcorp, "Party") <- substring(names(texts(DPGcorp)),9,11)
+summary(DPGcorp)
+
+#wordscores
+corpus1999 <- corpus_subset(DPGcorp, Year==1999)#select year 1999
+summary(corpus1999)
+
+dfm1999 <- dfm(corpus1999, stem = TRUE, remove = stopwords("english"), remove_punct = TRUE)
+head(dfm1999)
+
+#Reference scores
+refscores <- rep(NA,nrow(dfm1999))#repeat NA for the number of rows of the dfm
+
+refscores[str_detect(rownames(dfm1999), "1999_St_CON")] <- -1
+refscores[str_detect(rownames(dfm1999), "1999_St_SNP")] <- 1
+
+#Wordscore model
+ws1999 <- textmodel_wordscores(dfm1999, refscores, scale="linear", smooth=1)
+ws1999
+wordscore1999 <- predict(ws1999, rescaling="mv")
+wordscore1999
+
+#Writing the results into data frame
+ws.1999 <- data.frame(cbind(docvars(corpus1999),
+                            wordscore1999))
+ws.1999
+
+ws.1999 <- dplyr::rename(ws.1999, wscore = wordscore1999)
+ws.1999
